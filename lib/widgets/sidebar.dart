@@ -101,7 +101,7 @@ class ExampleSidebarX extends StatelessWidget {
           size: 20,
         ),
         selectedIconTheme: const IconThemeData(
-          color: Color(0xffeb4474),
+          color: Color(0xffFFBF00),
           size: 20,
         ),
       ),
@@ -221,7 +221,7 @@ class _ScreensExample extends StatelessWidget {
 }
 
 const canvasColor = Color(0xff2294ed);
-const scaffoldBackgroundColor = Color(0xffeb4474);
+const scaffoldBackgroundColor = Color(0xffFFBF00);
 const accentCanvasColor = Color(0xff2294ed);
 const white = Colors.white;
 final actionColor = const Color(0xFF5F5FA7).withOpacity(0.6);

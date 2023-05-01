@@ -43,6 +43,7 @@ dependencies:
   flutter_spinkit: ^5.1.0
   firebase_auth: ^4.4.2
   uuid: ^3.0.7
+  syncfusion_flutter_datagrid: ^21.1.41
 
 dev_dependencies:
   flutter_test:
