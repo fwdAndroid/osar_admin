@@ -1,161 +1,205 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:osar_admin/datasource/store_owner_datasource.dart';
+import 'package:osar_admin/models/store_owner_models.dart';
+import 'package:osar_admin/widgets/sidebar.dart';
 import 'package:syncfusion_flutter_datagrid/datagrid.dart';
 
-/// The application that contains datagrid on it.
-
-/// The home page of the application which hosts the datagrid.
 class OwnerRecords extends StatefulWidget {
-  /// Creates the home page.
-  OwnerRecords({Key? key}) : super(key: key);
+  const OwnerRecords({super.key});
 
   @override
-  _OwnerRecordsState createState() => _OwnerRecordsState();
+  State<OwnerRecords> createState() => _OwnerRecordsState();
 }
 
 class _OwnerRecordsState extends State<OwnerRecords> {
-  List<Employee> employees = <Employee>[];
-  late EmployeeDataSource employeeDataSource;
-
-  @override
-  void initState() {
-    super.initState();
-    employees = getEmployeeData();
-    employeeDataSource = EmployeeDataSource(employeeData: employees);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SfDataGrid(
-        source: employeeDataSource,
-        columnWidthMode: ColumnWidthMode.fill,
-        columns: <GridColumn>[
-          GridColumn(
-              columnName: 'id',
-              label: Container(
-                  padding: EdgeInsets.all(16.0),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Email',
-                  ))),
-          GridColumn(
-              columnName: 'name',
-              label: Container(
-                  padding: EdgeInsets.all(8.0),
-                  alignment: Alignment.center,
-                  child: Text('Name'))),
-          GridColumn(
-              columnName: 'store',
-              label: Container(
-                  padding: EdgeInsets.all(8.0),
-                  alignment: Alignment.center,
-                  child: Text('Store Name'))),
-          GridColumn(
-              columnName: 'designation',
-              label: Container(
-                  padding: EdgeInsets.all(8.0),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Phone Number',
-                    overflow: TextOverflow.ellipsis,
-                  ))),
-          GridColumn(
-              columnName: 'salary',
-              label: Container(
-                  padding: EdgeInsets.all(8.0),
-                  alignment: Alignment.center,
-                  child: Text('Location'))),
-          GridColumn(
-              columnName: 'status',
-              label: Container(
-                  padding: EdgeInsets.all(8.0),
-                  alignment: Alignment.center,
-                  child: Text('Status'))),
-        ],
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: MediaQuery.of(context).size.width,
+              height: 670,
+              child: Padding(
+                padding: const EdgeInsets.all(1.0),
+                child: _buildDataGrid(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  List<Employee> getEmployeeData() {
-    return [
-      Employee("fwdKaleem@gmail.com", 'James', "Al Bakra Store", '+9238952355',
-          "245 B Eden Garden", "Active"),
-      Employee("fwdKaleem@gmail.com", 'Kathryn', "Al Bakra Store",
-          '+9238952355', "245 B Eden Garden", "Active"),
-      Employee("fwdKaleem@gmail.com", 'Lara', "Al Bakra Store", '+9238952355',
-          "245 B Eden Garden", "Pending"),
-      Employee("fwdKaleem@gmail.com", 'Michael', "Al Bakra Store",
-          '+9238952355', "245 B Eden Garden", "Rejected"),
-      Employee("fwdKaleem@gmail.com", 'Martin', "Al Bakra Store", '+9238952355',
-          "245 B Eden Garden", "Rejected"),
-      Employee("fwdKaleem@gmail.com", 'Newberry', "Al Bakra Store",
-          '+9238952355', "245 B Eden Garden", "Pending"),
-      Employee("fwdKaleem@gmail.com", 'Balnc', "Al Bakra Store", '+9238952355',
-          "245 B Eden Garden", "Active"),
-      Employee("fwdKaleem@gmail.com", 'Perry', "Al Bakra Store", '+9238952355',
-          "245 B Eden Garden", "Active"),
-      Employee("fwdKaleem@gmail.com", 'Gable', "Al Bakra Store", '+9238952355',
-          "245 B Eden Garden", "Active"),
-      Employee("fwdKaleem@gmail.com", 'Grimes', "Al Bakra Store", '+9238952355',
-          "245 B Eden Garden", "Rejected")
-    ];
+  late StoreOwnerDataSource employeeDataSource;
+  List<StoreModel> employeeData = [];
+
+  final getDataFromFireStore =
+      FirebaseFirestore.instance.collection('storeowners').snapshots();
+  Widget _buildDataGrid() {
+    return StreamBuilder(
+      stream: getDataFromFireStore,
+      builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+              child: LoadingAnimationWidget.hexagonDots(
+                  color: Colors.blue, size: 200));
+        }
+        if (snapshot.hasData) {
+          if (employeeData.isNotEmpty) {
+            getDataGridRowFromDataBase(DocumentChange<Object?> data) {
+              return DataGridRow(cells: [
+                DataGridCell<String>(
+                    columnName: 'name', value: data.doc['name']),
+                DataGridCell<String>(
+                    columnName: 'email', value: data.doc['email']),
+                DataGridCell<String>(
+                    columnName: 'address', value: data.doc['address']),
+                DataGridCell<String>(
+                    columnName: 'type', value: data.doc['type']),
+                DataGridCell<String>(
+                    columnName: 'verified', value: data.doc['verified']),
+              ]);
+            }
+
+            for (var data in snapshot.data!.docChanges) {
+              if (data.type == DocumentChangeType.modified) {
+                if (data.oldIndex == data.newIndex) {
+                  employeeDataSource.dataGridRows[data.oldIndex] =
+                      getDataGridRowFromDataBase(data);
+                }
+                employeeDataSource.updateDataGridSource();
+              } else if (data.type == DocumentChangeType.added) {
+                employeeDataSource.dataGridRows
+                    .add(getDataGridRowFromDataBase(data));
+                employeeDataSource.updateDataGridSource();
+              } else if (data.type == DocumentChangeType.removed) {
+                employeeDataSource.dataGridRows.removeAt(data.oldIndex);
+                employeeDataSource.updateDataGridSource();
+              }
+            }
+          } else {
+            for (var data in snapshot.data!.docs) {
+              employeeData.add(StoreModel(
+                address: data['address'],
+                uid: data['uid'],
+                verified: data['verified'],
+                phoneNumber: data['phoneNumber'],
+                name: data['name'],
+                email: data['email'],
+                photoUrl: data['photoUrl'],
+                type: data['type'],
+              ));
+            }
+            employeeDataSource = StoreOwnerDataSource(employeeData);
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(5.0),
+            child: SfDataGrid(
+              allowFiltering: true,
+              allowSwiping: true,
+              source: employeeDataSource,
+              columns: getColumnsBusiness,
+              columnWidthMode: ColumnWidthMode.fill,
+              onCellTap: (details) {
+                if (details.rowColumnIndex.rowIndex != 0) {
+                  final DataGridRow row = employeeDataSource
+                      .effectiveRows[details.rowColumnIndex.rowIndex - 1];
+                  int index = employeeDataSource.dataGridRows.indexOf(row);
+                  var data = snapshot.data!.docs[index];
+                  _showMyDialog(data);
+                  // Navigator.of(context).push(MaterialPageRoute(
+                  //     builder: (context) => BusinessView(data: data)));
+                }
+              },
+            ),
+          );
+        } else {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+      },
+    );
   }
-}
 
-/// Custom business object class which contains properties to hold the detailed
-/// information about the employee which will be rendered in datagrid.
-class Employee {
-  /// Creates the employee class with required details.
-  Employee(this.email, this.name, this.store, this.designation, this.salary,
-      this.status);
-
-  /// Id of an employee.
-  final String email;
-
-  /// Name of an employee.
-  final String name;
-  final String store;
-
-  /// Designation of an employee.
-  final String designation;
-
-  /// Salary of an employee.
-  final String salary;
-  final String status;
-}
-
-/// An object to set the employee collection data source to the datagrid. This
-/// is used to map the employee data to the datagrid widget.
-class EmployeeDataSource extends DataGridSource {
-  /// Creates the employee data source class with required details.
-  EmployeeDataSource({required List<Employee> employeeData}) {
-    _employeeData = employeeData
-        .map<DataGridRow>((e) => DataGridRow(cells: [
-              DataGridCell<String>(columnName: 'email', value: e.email),
-              DataGridCell<String>(columnName: 'name', value: e.name),
-              DataGridCell<String>(columnName: 'store', value: e.store),
-              DataGridCell<String>(
-                  columnName: 'designation', value: e.designation),
-              DataGridCell<String>(columnName: 'salary', value: e.salary),
-              DataGridCell<String>(columnName: 'status', value: e.status),
-            ]))
-        .toList();
-  }
-
-  List<DataGridRow> _employeeData = [];
-
-  @override
-  List<DataGridRow> get rows => _employeeData;
-
-  @override
-  DataGridRowAdapter buildRow(DataGridRow row) {
-    return DataGridRowAdapter(
-        cells: row.getCells().map<Widget>((e) {
-      return Container(
-        alignment: Alignment.center,
-        padding: EdgeInsets.all(8.0),
-        child: Text(e.value.toString()),
-      );
-    }).toList());
+  Future<void> _showMyDialog(QueryDocumentSnapshot<Object?> data) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Store Owner Records"),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text(
+                  "Email",
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold),
+                ),
+                Text(data.get("email")),
+                Divider(),
+                Text(
+                  "Name",
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold),
+                ),
+                Text(data.get("name")),
+                Divider(),
+                Text(
+                  "Date of Birth",
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold),
+                ),
+                Text(data.get("dob")),
+                Divider(),
+                Text(
+                  "Address",
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold),
+                ),
+                Text(data.get("address")),
+                Divider(),
+                Text(
+                  "Dp you want to Approve the Store Owner to use our app",
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Approve'),
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection("storeowners")
+                    .doc(data.get("uid"))
+                    .update({"verified": true}).then((value) => {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (builder) => SideDrawer())),
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Account is Verified")))
+                        });
+              },
+            ),
+            TextButton(
+              child: const Text('No'),
+              onPressed: () async {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 }
